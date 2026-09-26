@@ -528,9 +528,14 @@ body::after {
   animation: heroFadeUp var(--duration-cinema) var(--ease-luxury) 0.25s forwards;
 }
 .hero__title strong {
-  font-weight: 600;
+  font-weight: 800;
   color: #FFFFFF;
   display: block;
+  line-height: 1.08;
+}
+.hero__title-line {
+  display: block;
+  line-height: 1.08;
 }
 .hero__title em {
   font-style: italic;
