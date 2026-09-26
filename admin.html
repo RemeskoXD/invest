@@ -233,6 +233,122 @@
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════
+  PASSWORD GATE — Chrání admin před neoprávněným přístupem
+═══════════════════════════════════════════ -->
+<div id="admin-gate" style="
+  position:fixed;inset:0;z-index:9999;
+  background:linear-gradient(135deg,#012B12 0%,#0f3d20 60%,#1a5c30 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Inter',system-ui,sans-serif;
+">
+  <div style="
+    background:#fff;border-radius:16px;padding:48px 40px;
+    width:100%;max-width:420px;box-shadow:0 32px 80px rgba(0,0,0,0.4);
+    text-align:center;
+  ">
+    <!-- Logo -->
+    <div style="font-size:1.5rem;font-weight:800;letter-spacing:-0.03em;color:#012B12;margin-bottom:4px;">
+      G3NE<span style="color:#C8A96E;">5</span>IS
+    </div>
+    <div style="font-size:0.75rem;color:#888;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:28px;">
+      Admin Panel
+    </div>
+
+    <div style="font-size:0.9rem;color:#555;margin-bottom:20px;">
+      🔐 Zadejte přístupové heslo
+    </div>
+
+    <input
+      id="gate-input"
+      type="password"
+      placeholder="Heslo..."
+      autocomplete="current-password"
+      style="
+        width:100%;padding:14px 16px;border:2px solid #e0e8e4;
+        border-radius:10px;font-size:1rem;outline:none;
+        transition:border-color .2s;margin-bottom:16px;
+        font-family:inherit;
+      "
+      onkeydown="if(event.key==='Enter')checkPassword()"
+      onfocus="this.style.borderColor='#C8A96E'"
+      onblur="this.style.borderColor='#e0e8e4'"
+    />
+
+    <button onclick="checkPassword()" style="
+      width:100%;padding:14px;background:#012B12;color:#fff;
+      border:none;border-radius:10px;font-size:0.95rem;font-weight:600;
+      cursor:pointer;transition:background .2s;letter-spacing:0.02em;
+    "
+      onmouseover="this.style.background='#C8A96E'"
+      onmouseout="this.style.background='#012B12'"
+    >
+      Přihlásit se →
+    </button>
+
+    <div id="gate-error" style="
+      margin-top:14px;color:#c0392b;font-size:0.85rem;
+      min-height:20px;font-weight:500;
+    "></div>
+
+    <div style="margin-top:24px;font-size:0.72rem;color:#bbb;">
+      Přístup pouze pro oprávněné osoby G3NE5IS s.r.o.
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes gate-shake {
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-8px)}
+  40%{transform:translateX(8px)}
+  60%{transform:translateX(-6px)}
+  80%{transform:translateX(6px)}
+}
+.gate-shake { animation: gate-shake 0.4s ease; }
+</style>
+
+<script>
+(function() {
+  // SHA-256 hash of password "UUGDSJD8767SD"
+  const HASH = '9e6c09c03b8a4281485611c144e8100a06267aae80b0b5435d312f8d7b74115f';
+
+  async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  // Check session — if already authenticated in this session, skip gate
+  if (sessionStorage.getItem('g3ne5is_admin') === HASH) {
+    document.getElementById('admin-gate').style.display = 'none';
+  }
+
+  window.checkPassword = async function() {
+    const val = document.getElementById('gate-input').value;
+    const hash = await sha256(val);
+    if (hash === HASH) {
+      sessionStorage.setItem('g3ne5is_admin', hash);
+      const gate = document.getElementById('admin-gate');
+      gate.style.transition = 'opacity .4s';
+      gate.style.opacity = '0';
+      setTimeout(() => gate.style.display = 'none', 400);
+    } else {
+      const inp = document.getElementById('gate-input');
+      const err = document.getElementById('gate-error');
+      inp.classList.remove('gate-shake');
+      void inp.offsetWidth; // reflow
+      inp.classList.add('gate-shake');
+      inp.value = '';
+      inp.style.borderColor = '#c0392b';
+      setTimeout(() => inp.style.borderColor = '#e0e8e4', 1500);
+      err.textContent = '❌ Nesprávné heslo. Zkuste znovu.';
+      setTimeout(() => err.textContent = '', 3000);
+    }
+  };
+})();
+</script>
+
+
 <div class="layout">
   <!-- SIDEBAR -->
   <aside class="sidebar">
