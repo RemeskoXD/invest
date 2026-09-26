@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Admin panel — zakázán pro crawlery
+Disallow: /admin.html
+
+# Sitemaps pro všechny 3 domény
+Sitemap: https://genesis-invest.cz/sitemap.xml
+Sitemap: https://genesis-invest.sk/sitemap.xml
+Sitemap: https://genesis-invest.pl/sitemap.xml
