@@ -127,7 +127,7 @@ export const GrowthChart: React.FC<Props> = ({ t }) => {
             <div>
               <div className="growth-value" id="chart-live-val">+287 %</div>
               <div className="growth-pill" id="chart-live-change">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style={{ display: 'inline', marginRight: 4 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} style={{ display: 'inline', marginRight: 4 }}>
                   <polyline points="18 15 12 9 6 15" />
                 </svg>
                 <span>{t.growth_pill}</span>

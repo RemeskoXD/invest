@@ -195,7 +195,7 @@ export default function AdminPage() {
               <div>
                 <h1 class="title">CERTIFIKÁT DLUHOPISU</h1>
                 <div style="font-size:14px;color:#012B12;font-weight:600;margin-top:4px;">
-                  ${order.tier === 'vip' ? '👑 PRIVÁTNÍ VIP EMÍSE' : 'ZÁKLADNÍ EMÍSE PODNIKOVÝCH DLUHOPISŮ'}
+                  ${order.tier === 'vip' ? '👑 PRIVÁTNÍ VIP EMISE' : 'ZÁKLADNÍ EMISE PODNIKOVÝCH DLUHOPISŮ'}
                 </div>
               </div>
               <div class="meta">

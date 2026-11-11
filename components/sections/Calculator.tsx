@@ -42,6 +42,25 @@ export const Calculator: React.FC<Props> = ({ t, onOpenModal, onTriggerDust }) =
     t.calc_meta_10let?.replace('10 ', '') || 'let'
   );
 
+  const amountPercent = Math.max(
+    0,
+    Math.min(
+      100,
+      ((amount - SITE_CONFIG.STANDARD.MIN_AMOUNT) /
+        (SITE_CONFIG.STANDARD.MAX_AMOUNT - SITE_CONFIG.STANDARD.MIN_AMOUNT)) *
+        100
+    )
+  );
+  const yearsPercent = Math.max(
+    0,
+    Math.min(
+      100,
+      ((years - SITE_CONFIG.MIN_YEARS) /
+        (SITE_CONFIG.MAX_YEARS - SITE_CONFIG.MIN_YEARS)) *
+        100
+    )
+  );
+
   return (
     <section className="section section--gray" id="kalkulator" aria-labelledby="calc-h2">
       <div className="container">
@@ -79,6 +98,9 @@ export const Calculator: React.FC<Props> = ({ t, onOpenModal, onTriggerDust }) =
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
                 aria-label={t.calc_lbl_amount || 'Výše investované částky'}
+                style={{
+                  background: `linear-gradient(to right, var(--g-emerald-2) 0%, var(--g-emerald-2) ${amountPercent}%, rgba(0,0,0,0.06) ${amountPercent}%, rgba(0,0,0,0.06) 100%)`,
+                }}
               />
               <div className="calc-range-meta">
                 <span>10 000 Kč</span>
@@ -107,6 +129,9 @@ export const Calculator: React.FC<Props> = ({ t, onOpenModal, onTriggerDust }) =
                 value={years}
                 onChange={(e) => setYears(Number(e.target.value))}
                 aria-label={t.calc_lbl_years || 'Délka investice v letech'}
+                style={{
+                  background: `linear-gradient(to right, var(--g-emerald-2) 0%, var(--g-emerald-2) ${yearsPercent}%, rgba(0,0,0,0.06) ${yearsPercent}%, rgba(0,0,0,0.06) 100%)`,
+                }}
               />
               <div className="calc-range-meta">
                 <span>{t.calc_meta_1rok || '1 rok'}</span>

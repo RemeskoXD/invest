@@ -74,13 +74,13 @@ export const Hero: React.FC<Props> = ({ t, onOpenModal }) => {
               id="hero-invest-btn"
               onClick={onOpenModal}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style={{ width: 20, height: 20 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
               <span>{t.hero_btn_invest}</span>
             </button>
             <a href="#kalkulator" className="btn btn--outline btn--lg" id="hero-calc-btn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style={{ width: 20, height: 20 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
                 <rect x="4" y="2" width="16" height="20" rx="2" />
                 <line x1="8" y1="10" x2="16" y2="10" />
                 <line x1="8" y1="14" x2="14" y2="14" />

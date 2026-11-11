@@ -26,6 +26,25 @@ export const VipSection: React.FC<Props> = ({ t, onOpenModal }) => {
     t.calc_meta_10let?.replace('10 ', '') || 'let'
   );
 
+  const vipAmountPercent = Math.max(
+    0,
+    Math.min(
+      100,
+      ((amount - SITE_CONFIG.VIP.MIN_AMOUNT) /
+        (20000000 - SITE_CONFIG.VIP.MIN_AMOUNT)) *
+        100
+    )
+  );
+  const vipYearsPercent = Math.max(
+    0,
+    Math.min(
+      100,
+      ((years - SITE_CONFIG.MIN_YEARS) /
+        (SITE_CONFIG.MAX_YEARS - SITE_CONFIG.MIN_YEARS)) *
+        100
+    )
+  );
+
   return (
     <section className="section section--vip" id="vip" aria-labelledby="vip-h2">
       <div className="container">
@@ -72,6 +91,9 @@ export const VipSection: React.FC<Props> = ({ t, onOpenModal }) => {
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
                 aria-label={t.vip_lbl_amount || 'Výše VIP investované částky'}
+                style={{
+                  background: `linear-gradient(to right, var(--g-gold) 0%, var(--g-gold) ${vipAmountPercent}%, rgba(200, 169, 110, 0.2) ${vipAmountPercent}%, rgba(200, 169, 110, 0.2) 100%)`,
+                }}
               />
               <div className="calc-range-meta calc-range-meta--gold">
                 <span>{t.vip_meta_1 || '1 mil. Kč'}</span>
@@ -100,6 +122,9 @@ export const VipSection: React.FC<Props> = ({ t, onOpenModal }) => {
                 value={years}
                 onChange={(e) => setYears(Number(e.target.value))}
                 aria-label={t.vip_lbl_years || 'Délka VIP investice v letech'}
+                style={{
+                  background: `linear-gradient(to right, var(--g-gold) 0%, var(--g-gold) ${vipYearsPercent}%, rgba(200, 169, 110, 0.2) ${vipYearsPercent}%, rgba(200, 169, 110, 0.2) 100%)`,
+                }}
               />
               <div className="calc-range-meta calc-range-meta--gold">
                 <span>{t.calc_meta_1rok || '1 rok'}</span>

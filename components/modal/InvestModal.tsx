@@ -68,7 +68,36 @@ export const InvestModal: React.FC<Props> = ({
     }
   }, [isOpen, initialTier, initialAmount, initialYears]);
 
+  // Accessibility: ESC key to close & body scroll lock
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
+
+  const clearError = (field: string) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
   const handleSelectTier = (newTier: InvestmentTier) => {
     setTier(newTier);
@@ -172,7 +201,7 @@ export const InvestModal: React.FC<Props> = ({
 
   return (
     <div
-      className="modal-backdrop active"
+      className="modal-backdrop open active"
       id="invest-modal"
       role="dialog"
       aria-modal="true"
@@ -215,10 +244,12 @@ export const InvestModal: React.FC<Props> = ({
                   aria-checked={tier === 'standard'}
                   tabIndex={0}
                   onClick={() => handleSelectTier('standard')}
+                  onDoubleClick={handleGoToStep1}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       handleSelectTier('standard');
+                      handleGoToStep1();
                     }
                   }}
                 >
@@ -240,10 +271,12 @@ export const InvestModal: React.FC<Props> = ({
                   aria-checked={tier === 'vip'}
                   tabIndex={0}
                   onClick={() => handleSelectTier('vip')}
+                  onDoubleClick={handleGoToStep1}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       handleSelectTier('vip');
+                      handleGoToStep1();
                     }
                   }}
                 >
@@ -328,7 +361,10 @@ export const InvestModal: React.FC<Props> = ({
                 type="text"
                 id="inp-name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  clearError('name');
+                }}
                 placeholder="Lukáš Zaoral / ABC investice s.r.o."
                 required
                 autoComplete="name"
@@ -347,7 +383,10 @@ export const InvestModal: React.FC<Props> = ({
                   type="text"
                   id="inp-street"
                   value={street}
-                  onChange={(e) => setStreet(e.target.value)}
+                  onChange={(e) => {
+                    setStreet(e.target.value);
+                    clearError('street');
+                  }}
                   placeholder="Hlavní 123"
                   required
                   autoComplete="street-address"
@@ -363,7 +402,10 @@ export const InvestModal: React.FC<Props> = ({
                   type="text"
                   id="inp-city"
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  onChange={(e) => {
+                    setCity(e.target.value);
+                    clearError('city');
+                  }}
                   placeholder="Praha 1, 110 00"
                   required
                 />
@@ -381,7 +423,10 @@ export const InvestModal: React.FC<Props> = ({
                 type="date"
                 id="inp-dob"
                 value={dob}
-                onChange={(e) => setDob(e.target.value)}
+                onChange={(e) => {
+                  setDob(e.target.value);
+                  clearError('dob');
+                }}
                 required
                 aria-describedby="dob-note"
               />
@@ -403,7 +448,10 @@ export const InvestModal: React.FC<Props> = ({
                   type="email"
                   id="inp-email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearError('email');
+                  }}
                   placeholder="lukas@email.cz"
                   required
                   autoComplete="email"
@@ -474,12 +522,21 @@ export const InvestModal: React.FC<Props> = ({
                   className={`f-input ${errors.amount ? 'error' : ''}`}
                   type="number"
                   id="inp-amount"
-                  value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
+                  value={amount === 0 ? '' : amount}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : Number(e.target.value);
+                    setAmount(val);
+                    clearError('amount');
+                  }}
                   min={tier === 'vip' ? SITE_CONFIG.VIP.MIN_AMOUNT : SITE_CONFIG.STANDARD.MIN_AMOUNT}
                   max={tier === 'vip' ? 20000000 : SITE_CONFIG.STANDARD.MAX_AMOUNT}
                   required
                 />
+                {amount > 0 && (
+                  <div className="f-hint" style={{ color: 'var(--g-emerald)', fontWeight: 600, marginTop: 4 }}>
+                    Částka: {formatCZK(amount)}
+                  </div>
+                )}
                 {errors.amount && <div className="f-err-msg">{errors.amount}</div>}
               </div>
               <div className="f-group">
@@ -490,8 +547,12 @@ export const InvestModal: React.FC<Props> = ({
                   className={`f-input ${errors.years ? 'error' : ''}`}
                   type="number"
                   id="inp-years"
-                  value={years}
-                  onChange={(e) => setYears(Number(e.target.value))}
+                  value={years === 0 ? '' : years}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : Number(e.target.value);
+                    setYears(val);
+                    clearError('years');
+                  }}
                   min={SITE_CONFIG.MIN_YEARS}
                   max={SITE_CONFIG.MAX_YEARS}
                   required
