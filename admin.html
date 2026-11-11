@@ -541,7 +541,7 @@ function renderOrders() {
     const realIdx = allOrders.indexOf(o);
     return `
       <tr>
-        <td><strong>${escHtml(o.name || '—')}</strong><br><small style="color:var(--light-gray);">${escHtml(o.investorType === 'SRO' ? 's.r.o.' : 'FO')}</small></td>
+        <td><strong>${escHtml(o.name || '—')}</strong>${o.tier === 'vip' ? ' <span style="background:#C8A96E;color:#012B12;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:0.05em;">👑 VIP</span>' : ''}<br><small style="color:var(--light-gray);">${escHtml(o.investorType === 'SRO' ? 's.r.o.' : 'FO')}</small></td>
         <td>${fmtDate(o.timestamp)}</td>
         <td>${fmtCZK(o.amount || 0)}<br><small style="color:var(--light-gray);">${o.years} let · ${((o.rate||0)*100).toFixed(1).replace('.',',')} %</small></td>
         <td><code style="font-size:0.8rem;background:var(--off-white);padding:2px 6px;border-radius:4px;">${escHtml(o.vs)}</code></td>
@@ -618,6 +618,7 @@ function openDetail(idx) {
 
   const rows = [
     ['Jméno / firma', o.name],
+    ['Investiční zóna', o.tier === 'vip' ? '👑 VIP zóna (od 1 mil. Kč — 7,0 % p.a.)' : 'Standardní zóna (4,5–7 % p.a.)'],
     ['Typ investora', o.investorType === 'SRO' ? 'Společnost (s.r.o.)' : 'Fyzická osoba'],
     ['Ulice', o.street],
     ['Město a PSČ', o.city],
@@ -717,6 +718,7 @@ function generatePDF(idx) {
         <div style="background:#e8f5ee;border-radius:4px;padding:8mm 10mm;">
           <h2 style="color:#1a6b4a;font-size:9pt;margin:0 0 5mm 0;letter-spacing:0.08em;">PARAMETRY DLUHOPISU</h2>
           <table style="width:100%;border-collapse:collapse;font-size:10pt;color:#0f4a32;">
+            <tr><td style="padding:2mm 0;width:55%;color:#505050;font-weight:bold;">Emise:</td><td style="padding:2mm 0;font-weight:bold;color:#1a6b4a;">${o.tier === 'vip' ? '👑 VIP PRIVÁTNÍ DLUHOPIS' : 'PRÉMIOVÝ PODNIKOVÝ DLUHOPIS'}</td></tr>
             <tr><td style="padding:2mm 0;width:55%;color:#505050;font-weight:bold;">Investovaná částka:</td><td style="padding:2mm 0;font-weight:bold;">${fmtCZK(o.amount)}</td></tr>
             <tr><td style="padding:2mm 0;color:#505050;font-weight:bold;">Délka investice:</td><td style="padding:2mm 0;">${o.years} ${yearsLabel}</td></tr>
             <tr><td style="padding:2mm 0;color:#505050;font-weight:bold;">Roční úroková sazba:</td><td style="padding:2mm 0;">${rate} % p.a. (složené úročení)</td></tr>

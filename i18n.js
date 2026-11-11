@@ -1,6 +1,10 @@
-﻿/** G3NE5IS -- i18n.js : Domain detection + translation engine */
+/** G3NE5IS -- i18n.js : Domain detection + translation engine */
 (function () {
   function detectLang() {
+    try {
+      var p = new URLSearchParams(window.location.search).get('lang');
+      if (p === 'sk' || p === 'pl' || p === 'cs') return p;
+    } catch (e) {}
     var h = window.location.hostname;
     if (h.indexOf('genesis-invest.pl') !== -1) return 'pl';
     if (h.indexOf('genesis-invest.sk') !== -1) return 'sk';

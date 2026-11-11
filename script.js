@@ -1,133 +1,172 @@
-﻿/* =============================================================
-   GENESIS INVESTIÄŚNĂŤ SPOLEÄŚNOST â€” SCRIPT v2.0
-   Ultra-Luxury Web3: Calculator, Chart, QR, Gold Dust, Nav
+/* =============================================================
+   G3NE5IS HOLDINGOVÁ SPOLEČNOST — SCRIPT v3.0
+   Kalkulačky (Standard + VIP), graf, výběr zóny, QR platba, navigace
 ============================================================= */
 'use strict';
 
 /* =========================================================
-   CONFIG
+   CONFIG — jediný zdroj pravdy pro sazby
 ========================================================= */
-const CFG = {
-  IBAN:          'CZ0355000000006037774568',
-  BIC:           'RZBCCZPP',
-  COMPANY:       'G3NE5IS s.r.o.',
-  BASE_RATE:     0.035,
-  YEAR_INC:      0.001,
-  BONUS_RATE:    0.005,
-  BONUS_YEARS:   20,
-  FEE_CZK:       2000,
-};
+const CFG = Object.freeze({
+  IBAN:      'CZ0355000000006037774568',
+  BIC:       'RZBCCZPP',
+  COMPANY:   'G3NE5IS s.r.o.',
+  FEE_CZK:   2000,
+  TAX_RATE:  0.15,
+  MIN_YEARS: 1,
+  MAX_YEARS: 20,
+  STANDARD: Object.freeze({
+    MIN_AMOUNT:  10000,
+    MAX_AMOUNT:  999999,
+    BASE_RATE:   0.045,  // 4,5 % p.a. za 1 rok
+    YEAR_INC:    0.001,  // +0,1 % za každý další rok
+    BONUS_RATE:  0.006,  // věrnostní bonus při 20 letech → 7,0 %
+    BONUS_YEARS: 20,
+  }),
+  VIP: Object.freeze({
+    MIN_AMOUNT: 1000000,
+    RATE:       0.07,    // 7,0 % p.a. od prvního dne
+  }),
+  BANK_RATE: 0.007,      // srovnávací bankovní vklad
+});
+
+const TIERS = Object.freeze({ STANDARD: 'standard', VIP: 'vip' });
 
 /* =========================================================
-   FORMATTING UTILITIES
+   i18n HELPER — texty z translations.js (fallback čeština)
 ========================================================= */
-const fmtCZK = (n) =>
-  new Intl.NumberFormat('cs-CZ', {
-    style: 'currency', currency: 'CZK',
-    minimumFractionDigits: 0, maximumFractionDigits: 0,
-  }).format(Math.round(n));
+function T(key) {
+  const site = window.SITE_T;
+  if (site && site[key] !== undefined) return site[key];
+  const cs = window.TRANSLATIONS && window.TRANSLATIONS.cs;
+  if (cs && cs[key] !== undefined) return cs[key];
+  return key;
+}
 
+/* =========================================================
+   FORMATTING
+========================================================= */
+const czkFormatter = new Intl.NumberFormat('cs-CZ', {
+  style: 'currency', currency: 'CZK',
+  minimumFractionDigits: 0, maximumFractionDigits: 0,
+});
+const fmtCZK = (n) => czkFormatter.format(Math.round(n));
 const fmtPct = (r) => (r * 100).toFixed(1).replace('.', ',') + ' %';
 
-const fmtYears = (y) =>
-  y === 1 ? '1 rok' : y < 5 ? `${y} roky` : `${y} let`;
+function fmtYears(y) {
+  if (y === 1) return `1 ${T('yr_one')}`;
+  if (y >= 2 && y <= 4) return `${y} ${T('yr_few')}`;
+  return `${y} ${T('yr_many')}`;
+}
 
 function getTodayVS() {
   const d = new Date();
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /* =========================================================
-   CALCULATOR MATH
+   RATE MATH
 ========================================================= */
-function getRate(years) {
-  let r = CFG.BASE_RATE + (years - 1) * CFG.YEAR_INC;
-  if (years === CFG.BONUS_YEARS) r += CFG.BONUS_RATE;
-  return r;
+function getRate(years, tier = TIERS.STANDARD) {
+  if (tier === TIERS.VIP) return CFG.VIP.RATE;
+  const s = CFG.STANDARD;
+  let r = s.BASE_RATE + (years - 1) * s.YEAR_INC;
+  if (years === s.BONUS_YEARS) r += s.BONUS_RATE;
+  return Math.round(r * 10000) / 10000; // odstranění chyb plovoucí čárky
 }
 
-function calcReturn(principal, years) {
-  const rate  = getRate(years);
-  const total = principal * Math.pow(1 + rate, years);
-  const grossGain = total - principal;
-  const netGain = grossGain * 0.85; // 15% tax
-  const netTotal = principal + netGain;
-  return { rate, total: netTotal, grossGain, netGain };
+function calcReturn(principal, years, tier) {
+  const rate      = getRate(years, tier);
+  const gross     = principal * Math.pow(1 + rate, years);
+  const grossGain = gross - principal;
+  const netGain   = grossGain * (1 - CFG.TAX_RATE);
+  return { rate, grossTotal: gross, netTotal: principal + netGain, grossGain, netGain };
 }
 
 /* =========================================================
-   SLIDER STATE
+   DOM HELPERS
+========================================================= */
+const $ = (id) => document.getElementById(id);
+function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
+function setVal(id, val)  { const el = $(id); if (el) el.value = val; }
+
+function updateSliderFill(id, val, theme = 'emerald') {
+  const el = $(id);
+  if (!el) return;
+  const min = Number(el.min), max = Number(el.max);
+  const pct = ((val - min) / (max - min)) * 100;
+  el.style.background = theme === 'gold'
+    ? `linear-gradient(to right, #8C6A2F 0%, #E9CF94 ${pct}%, rgba(200,169,110,0.18) ${pct}%, rgba(200,169,110,0.18) 100%)`
+    : `linear-gradient(to right, var(--emerald) 0%, var(--emerald-mid) ${pct}%, var(--gray-200) ${pct}%, var(--gray-200) 100%)`;
+}
+
+/* =========================================================
+   STANDARD CALCULATOR
 ========================================================= */
 let calcAmount = 100000;
 let calcYears  = 5;
 let prevYears  = 5;
 
 function updateCalc() {
-  const { rate, total, grossGain, netGain } = calcReturn(calcAmount, calcYears);
+  const { rate, netTotal, grossGain, netGain } = calcReturn(calcAmount, calcYears, TIERS.STANDARD);
 
-  // Display values
-  setText('amount-display', fmtCZK(calcAmount));
-  setText('years-display',  fmtYears(calcYears));
-  setText('result-total',   fmtCZK(total));
-  setText('result-gain-gross', `HrubĂ˝ vĂ˝nos: + ${fmtCZK(grossGain)}`);
-  setText('result-gain-net',   `ÄŚistĂ˝ vĂ˝nos: + ${fmtCZK(netGain)}`);
-  setText('param-rate',     fmtPct(rate));
-  setText('param-years',    fmtYears(calcYears));
+  setText('amount-display',    fmtCZK(calcAmount));
+  setText('years-display',     fmtYears(calcYears));
+  setText('result-total',      fmtCZK(netTotal));
+  setText('result-gain-gross', `${T('calc_gross')}: + ${fmtCZK(grossGain)}`);
+  setText('result-gain-net',   `${T('calc_net')}: + ${fmtCZK(netGain)}`);
+  setText('param-rate',        fmtPct(rate));
+  setText('param-years',       fmtYears(calcYears));
 
-  // Slider fills
-  updateSliderFill('amount-slider', 10000, 5000000, calcAmount);
-  updateSliderFill('years-slider',  1, 20, calcYears);
+  updateSliderFill('amount-slider', calcAmount);
+  updateSliderFill('years-slider',  calcYears);
 
-  // Bonus badge
-  const bonusEl = document.getElementById('calc-bonus');
+  const bonusEl = $('calc-bonus');
   if (bonusEl) {
-    if (calcYears === CFG.BONUS_YEARS) {
-      bonusEl.classList.add('visible');
-      // Fire gold dust only when crossing into 20
-      if (prevYears !== CFG.BONUS_YEARS) fireGoldDust();
-    } else {
-      bonusEl.classList.remove('visible');
-    }
+    const isBonus = calcYears === CFG.STANDARD.BONUS_YEARS;
+    bonusEl.classList.toggle('visible', isBonus);
+    if (isBonus && prevYears !== CFG.STANDARD.BONUS_YEARS) fireGoldDust();
   }
   prevYears = calcYears;
-
-  // Pre-fill form
-  setVal('inp-amount', calcAmount);
-  setVal('inp-years',  calcYears);
-}
-
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-function setVal(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.value = val;
-}
-
-function updateSliderFill(id, min, max, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const pct = ((val - min) / (max - min)) * 100;
-  el.style.background = `linear-gradient(to right, var(--emerald) 0%, var(--emerald-mid) ${pct}%, var(--gray-200) ${pct}%, var(--gray-200) 100%)`;
 }
 
 /* =========================================================
-   GOLD DUST ANIMATION (20-year loyalty bonus)
+   VIP CALCULATOR (od 1 000 000 Kč — 7 % p.a.)
 ========================================================= */
-const goldCanvas  = document.getElementById('gold-dust-canvas');
+let vipAmount = 2000000;
+let vipYears  = 5;
+
+function updateVipCalc() {
+  const { rate, netTotal, grossGain, netGain } = calcReturn(vipAmount, vipYears, TIERS.VIP);
+
+  setText('vip-amount-display', fmtCZK(vipAmount));
+  setText('vip-years-display',  fmtYears(vipYears));
+  setText('vip-result-total',   fmtCZK(netTotal));
+  setText('vip-gain-gross',     `${T('calc_gross')}: + ${fmtCZK(grossGain)}`);
+  setText('vip-gain-net',       `${T('calc_net')}: + ${fmtCZK(netGain)}`);
+  setText('vip-param-rate',     fmtPct(rate));
+  setText('vip-param-years',    fmtYears(vipYears));
+
+  updateSliderFill('vip-amount-slider', vipAmount, 'gold');
+  updateSliderFill('vip-years-slider',  vipYears,  'gold');
+}
+
+/* =========================================================
+   GOLD DUST ANIMATION (20letý věrnostní bonus)
+========================================================= */
+const goldCanvas  = $('gold-dust-canvas');
 let goldParticles = [];
 let goldAnimId    = null;
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function fireGoldDust() {
-  if (!goldCanvas) return;
+  if (!goldCanvas || prefersReducedMotion) return;
   goldCanvas.style.display = 'block';
   goldCanvas.width  = window.innerWidth;
   goldCanvas.height = window.innerHeight;
   const ctx = goldCanvas.getContext('2d');
   goldParticles = [];
 
-  // Spawn particles from bottom-center
   for (let i = 0; i < 180; i++) {
     goldParticles.push({
       x: window.innerWidth / 2 + (Math.random() - 0.5) * 300,
@@ -171,36 +210,19 @@ function fireGoldDust() {
 }
 
 /* =========================================================
-   CHART â€” ANIMATED GROWTH
+   CHART — modelový vývoj (20 let, sazba 7 % p.a.)
 ========================================================= */
+const MODEL_YEARS = 20;
+const MODEL_RATE  = getRate(MODEL_YEARS, TIERS.STANDARD); // 7,0 %
+const MODEL_GAIN_PCT = Math.round((Math.pow(1 + MODEL_RATE, MODEL_YEARS) - 1) * 100); // 287
+
 function initChart() {
-  const canvas = document.getElementById('growthChart');
+  const canvas = $('growthChart');
   if (!canvas || typeof Chart === 'undefined') return;
 
-  const yrs    = 20;
-  const labels = ['Start', ...Array.from({length: yrs}, (_, i) => `Rok ${i + 1}`)];
-
-  function genGenesis() {
-    const d = [100];
-    for (let yr = 1; yr <= yrs; yr++) {
-      const r = getRate(yr);
-      const noise = (Math.random() * 0.005) - 0.001;
-      const prev  = d[d.length - 1];
-      d.push(+(prev * (1 + r + noise)).toFixed(2));
-    }
-    return d;
-  }
-
-  function genBank() {
-    const d = [100];
-    for (let yr = 1; yr <= yrs; yr++) {
-      d.push(+(d[d.length - 1] * 1.007).toFixed(2));
-    }
-    return d;
-  }
-
-  const genesis = genGenesis();
-  const bank    = genBank();
+  const labels  = [T('chart_start'), ...Array.from({ length: MODEL_YEARS }, (_, i) => `${T('chart_year')} ${i + 1}`)];
+  const genesis = Array.from({ length: MODEL_YEARS + 1 }, (_, y) => +(100 * Math.pow(1 + MODEL_RATE, y)).toFixed(2));
+  const bank    = Array.from({ length: MODEL_YEARS + 1 }, (_, y) => +(100 * Math.pow(1 + CFG.BANK_RATE, y)).toFixed(2));
   const ctx     = canvas.getContext('2d');
 
   const gGrad = ctx.createLinearGradient(0, 0, 0, 340);
@@ -211,19 +233,19 @@ function initChart() {
   bGrad.addColorStop(0, 'rgba(150, 150, 150, 0.12)');
   bGrad.addColorStop(1, 'rgba(150, 150, 150, 0)');
 
-  const chart = new Chart(ctx, {
+  new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [
         {
-          label: 'Portfolio Genesis',
+          label: T('growth_legend1'),
           data: genesis,
           borderColor: '#044A22',
           backgroundColor: gGrad,
           borderWidth: 2,
           fill: true,
-          tension: 0.5,
+          tension: 0.4,
           pointRadius: 0,
           pointHoverRadius: 7,
           pointHoverBackgroundColor: '#044A22',
@@ -231,7 +253,7 @@ function initChart() {
           pointHoverBorderWidth: 2,
         },
         {
-          label: 'BankovnĂ­ vklad',
+          label: T('growth_legend2'),
           data: bank,
           borderColor: 'rgba(180, 180, 195, 0.8)',
           backgroundColor: bGrad,
@@ -259,60 +281,35 @@ function initChart() {
           bodyFont: { family: 'Inter', size: 12, weight: '600' },
           callbacks: {
             label(c) {
-              const g = (c.parsed.y - 100).toFixed(1);
-              return `${c.dataset.label}: ${c.parsed.y.toFixed(1)} (${g >= 0 ? '+' : ''}${g} %)`;
+              const g = (c.parsed.y - 100).toFixed(1).replace('.', ',');
+              return `${c.dataset.label}: +${g} %`;
             },
           },
         },
       },
       scales: {
         x: {
-          grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false },
-          ticks: {
-            color: '#9999AA',
-            font: { family: 'Inter', size: 10 },
-            maxTicksLimit: 11,
-          },
+          grid: { color: 'rgba(0,0,0,0.03)' },
+          ticks: { color: '#9999AA', font: { family: 'Inter', size: 10 }, maxTicksLimit: 11 },
         },
         y: {
-          grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false },
-          ticks: {
-            color: '#9999AA',
-            font: { family: 'Inter', size: 10 },
-            callback: v => v + ' %',
-          },
+          grid: { color: 'rgba(0,0,0,0.03)' },
+          ticks: { color: '#9999AA', font: { family: 'Inter', size: 10 }, callback: (v) => v + ' %' },
         },
       },
-      animation: { duration: 2400, easing: 'easeInOutQuart' },
+      animation: prefersReducedMotion ? false : { duration: 2400, easing: 'easeInOutQuart' },
     },
   });
 
-  // Live pulse â€” update every 3.8s
-  setInterval(() => {
-    const updated = genesis.map((v, i) => {
-      if (i === 0) return v;
-      return +(v * (1 + (Math.random() * 0.003 - 0.0005))).toFixed(2);
-    });
-    // Ensure global uptrend
-    for (let i = 1; i < updated.length; i++) {
-      if (updated[i] <= updated[i - 1]) {
-        updated[i] = +(updated[i - 1] * 1.004).toFixed(2);
-      }
-    }
-    chart.data.datasets[0].data = updated;
-    chart.update('none');
-    const gain = (updated[yrs] - 100).toFixed(0);
-    const lv = document.getElementById('chart-live-val');
-    if (lv) lv.textContent = `+${gain} %`;
-  }, 3800);
+  setText('chart-live-val', `+${MODEL_GAIN_PCT} %`);
 }
 
 /* =========================================================
    NAVIGATION
 ========================================================= */
-const navEl    = document.getElementById('main-nav');
-const hambEl   = document.getElementById('hamburger');
-const linksEl  = document.getElementById('nav-links');
+const navEl   = $('main-nav');
+const hambEl  = $('hamburger');
+const linksEl = $('nav-links');
 
 window.addEventListener('scroll', () => {
   navEl?.classList.toggle('scrolled', window.scrollY > 30);
@@ -333,39 +330,32 @@ if (hambEl && linksEl) {
     document.body.style.overflow = open ? 'hidden' : '';
   });
 
-  // Close button inside mobile overlay
-  const closeBtnEl = document.getElementById('nav-close');
-  if (closeBtnEl) closeBtnEl.addEventListener('click', closeNav);
-
-  // Close on link click
-  linksEl.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', closeNav);
-  });
-
-  // Close on backdrop tap (click outside links container)
-  linksEl.addEventListener('click', (e) => {
-    if (e.target === linksEl) closeNav();
-  });
+  $('nav-close')?.addEventListener('click', closeNav);
+  linksEl.querySelectorAll('a').forEach((a) => a.addEventListener('click', closeNav));
+  linksEl.addEventListener('click', (e) => { if (e.target === linksEl) closeNav(); });
 }
 
 /* =========================================================
-   SMOOTH SCROLL (with nav offset)
+   SMOOTH SCROLL (s odsazením navigace)
 ========================================================= */
-document.querySelectorAll('a[href^="#"]').forEach(a => {
-  a.addEventListener('click', e => {
-    const tgt = document.querySelector(a.getAttribute('href'));
+document.querySelectorAll('a[href^="#"]').forEach((a) => {
+  a.addEventListener('click', (e) => {
+    const href = a.getAttribute('href');
+    if (!href || href === '#') return;
+    const tgt = document.querySelector(href);
     if (!tgt) return;
     e.preventDefault();
     const top = tgt.getBoundingClientRect().top + window.scrollY - 88;
-    window.scrollTo({ top, behavior: 'smooth' });
+    window.scrollTo({ top, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+    history.replaceState(null, '', href);
   });
 });
 
 /* =========================================================
    SCROLL REVEAL
 ========================================================= */
-const revealObs = new IntersectionObserver(entries => {
-  entries.forEach(e => {
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach((e) => {
     if (e.isIntersecting) {
       e.target.classList.add('visible');
       revealObs.unobserve(e.target);
@@ -373,185 +363,281 @@ const revealObs = new IntersectionObserver(entries => {
   });
 }, { threshold: 0.08, rootMargin: '0px 0px -56px 0px' });
 
-document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => {
-  revealObs.observe(el);
-});
+document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach((el) => revealObs.observe(el));
 
 /* =========================================================
    ACTIVE NAV ON SCROLL
 ========================================================= */
-const secs    = document.querySelectorAll('section[id]');
 const navLnks = document.querySelectorAll('.nav__link[href^="#"]');
-const navObs  = new IntersectionObserver(entries => {
-  entries.forEach(e => {
+const navObs  = new IntersectionObserver((entries) => {
+  entries.forEach((e) => {
     if (e.isIntersecting) {
-      navLnks.forEach(l => {
+      navLnks.forEach((l) => {
         l.classList.toggle('nav__link--featured', l.getAttribute('href') === `#${e.target.id}`);
       });
     }
   });
 }, { rootMargin: '-80px 0px -40% 0px', threshold: 0 });
-secs.forEach(s => navObs.observe(s));
+document.querySelectorAll('section[id]').forEach((s) => navObs.observe(s));
 
 /* =========================================================
-   HERO COUNTER ANIMATION
+   HERO COUNTER
 ========================================================= */
 function animateCounter(el, end, duration = 1800) {
-  const start    = 0;
-  const startTs  = performance.now();
+  if (prefersReducedMotion) { el.textContent = `+${end} %`; return; }
+  const startTs = performance.now();
   const step = (ts) => {
-    const elapsed = ts - startTs;
-    const pct     = Math.min(elapsed / duration, 1);
-    // ease out
-    const val = Math.round(start + (end - start) * (1 - Math.pow(1 - pct, 3)));
-    el.textContent = `+${val} %`;
+    const pct = Math.min((ts - startTs) / duration, 1);
+    el.textContent = `+${Math.round(end * (1 - Math.pow(1 - pct, 3)))} %`;
     if (pct < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }
 
 /* =========================================================
-   MODAL â€” OPEN / CLOSE
+   MODAL — výběr zóny → údaje → potvrzení
 ========================================================= */
 let investorType = 'FO';
+let selectedTier = null;
+let lastFocused  = null;
 
-function openModal() {
-  const m = document.getElementById('invest-modal');
-  m?.classList.add('open');
+function isModalOpen(id) { return $(id)?.classList.contains('open') ?? false; }
+
+function showStep(n) {
+  [0, 1, 2].forEach((i) => {
+    const el = $(`modal-step-${i}`);
+    if (el) el.hidden = i !== n;
+  });
+  const box = document.querySelector('#invest-modal .modal-box');
+  if (box) box.scrollTop = 0;
+  const focusTarget = {
+    0: () => document.querySelector('.tier-card.active') || $('tier-standard'),
+    1: () => $('inp-name'),
+    2: () => $('legal-check'),
+  }[n];
+  setTimeout(() => focusTarget?.()?.focus(), 60);
+}
+
+function openModal(preTier) {
+  lastFocused = document.activeElement;
+  $('invest-modal')?.classList.add('open');
   document.body.style.overflow = 'hidden';
-  
-  // reset steps
-  const s1 = document.getElementById('modal-step-1');
-  const s2 = document.getElementById('modal-step-2');
-  if (s1) s1.style.display = 'block';
-  if (s2) s2.style.display = 'none';
-  
-  const chk = document.getElementById('legal-check');
+
+  $('form-err')?.remove();
+  const chk = $('legal-check');
   if (chk) chk.checked = false;
   toggleSubmitBtn();
 
-  setVal('inp-amount', calcAmount);
-  setVal('inp-years',  calcYears);
-  setTimeout(() => document.getElementById('inp-name')?.focus(), 80);
+  selectedTier = null;
+  document.querySelectorAll('.tier-card').forEach((c) => {
+    c.classList.remove('active');
+    c.setAttribute('aria-checked', 'false');
+  });
+  const next = $('tier-next');
+  if (next) next.disabled = true;
+
+  if (preTier === TIERS.STANDARD || preTier === TIERS.VIP) selectTier(preTier);
+  showStep(0);
 }
+
 function closeModal() {
-  document.getElementById('invest-modal')?.classList.remove('open');
+  $('invest-modal')?.classList.remove('open');
   document.body.style.overflow = '';
+  lastFocused?.focus?.();
 }
-document.getElementById('invest-modal')?.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-});
+
+function selectTier(tier) {
+  if (tier !== TIERS.STANDARD && tier !== TIERS.VIP) return;
+  selectedTier = tier;
+
+  document.querySelectorAll('.tier-card').forEach((c) => {
+    const on = c.dataset.tier === tier;
+    c.classList.toggle('active', on);
+    c.setAttribute('aria-checked', on.toString());
+  });
+  const next = $('tier-next');
+  if (next) next.disabled = false;
+
+  // Předvyplnění parametrů z odpovídající kalkulačky
+  const amountInp = $('inp-amount');
+  if (tier === TIERS.VIP) {
+    setVal('inp-amount', vipAmount);
+    setVal('inp-years',  vipYears);
+    if (amountInp) { amountInp.min = String(CFG.VIP.MIN_AMOUNT); amountInp.removeAttribute('max'); amountInp.placeholder = '1000000'; }
+  } else {
+    setVal('inp-amount', calcAmount);
+    setVal('inp-years',  calcYears);
+    if (amountInp) { amountInp.min = String(CFG.STANDARD.MIN_AMOUNT); amountInp.max = String(CFG.STANDARD.MAX_AMOUNT); amountInp.placeholder = '100000'; }
+  }
+  renderTierBadge();
+}
+
+function renderTierBadge() {
+  const badge = $('tier-badge');
+  if (!badge || !selectedTier) return;
+  const isVip = selectedTier === TIERS.VIP;
+  badge.classList.toggle('tier-badge--vip', isVip);
+  setText('tier-badge-name', isVip ? T('tier_vip_name') : T('tier_std_name'));
+  setText('tier-badge-rate', isVip ? T('tier_vip_rate') : T('tier_std_rate'));
+}
+
+function goToStep1() {
+  if (!selectedTier) return;
+  showStep(1);
+}
+
+function backToStep1() { showStep(1); }
 
 function setType(t) {
-  investorType = t;
-  document.getElementById('btn-fo')?.classList.toggle('active', t === 'FO');
-  document.getElementById('btn-sro')?.classList.toggle('active', t === 'SRO');
-  document.getElementById('btn-fo')?.setAttribute('aria-pressed', (t === 'FO').toString());
-  document.getElementById('btn-sro')?.setAttribute('aria-pressed', (t === 'SRO').toString());
-  const ni = document.getElementById('inp-name');
-  if (ni) ni.placeholder = t === 'FO' ? 'Jan NovĂˇk' : 'ABC investice s.r.o.';
+  investorType = t === 'SRO' ? 'SRO' : 'FO';
+  ['fo', 'sro'].forEach((k) => {
+    const btn = $(`btn-${k}`);
+    const on  = (k === 'fo') === (investorType === 'FO');
+    btn?.classList.toggle('active', on);
+    btn?.setAttribute('aria-pressed', on.toString());
+  });
+  const ni = $('inp-name');
+  if (ni) ni.placeholder = investorType === 'FO' ? T('ph_name_fo') : T('ph_name_sro');
 }
 
 /* =========================================================
    FORM VALIDATION & SUBMISSION
 ========================================================= */
-function goToStep2() {
-  const name   = document.getElementById('inp-name')?.value.trim();
-  const street = document.getElementById('inp-street')?.value.trim();
-  const city   = document.getElementById('inp-city')?.value.trim();
-  const dob    = document.getElementById('inp-dob')?.value;
-  const email  = document.getElementById('inp-email')?.value.trim();
-  const amount = parseInt(document.getElementById('inp-amount')?.value);
-  const years  = parseInt(document.getElementById('inp-years')?.value);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-  if (!name || !street || !city || !dob || !email || !amount || !years) {
-    showFormErr('ProsĂ­m vyplĹte vĹˇechna povinnĂˇ pole oznaÄŤenĂˇ *.');
-    return;
-  }
-  if (amount < 10000) { showFormErr('MinimĂˇlnĂ­ vĂ˝Ĺˇe investice je 10 000 KÄŤ.'); return; }
-  if (years < 1 || years > 20) { showFormErr('DĂ©lka investice musĂ­ bĂ˝t 1 aĹľ 20 let.'); return; }
-
-  const errEl = document.getElementById('form-err');
-  if (errEl) errEl.remove();
-
-  const s1 = document.getElementById('modal-step-1');
-  const s2 = document.getElementById('modal-step-2');
-  if (s1 && s2) {
-    s1.style.display = 'none';
-    s2.style.display = 'block';
-  }
+function readForm() {
+  const val = (id) => ($(id)?.value || '').trim();
+  return {
+    name:   val('inp-name'),
+    street: val('inp-street'),
+    city:   val('inp-city'),
+    dob:    val('inp-dob'),
+    email:  val('inp-email'),
+    phone:  val('inp-phone'),
+    bene:   val('inp-bene'),
+    beneYr: val('inp-bene-yr'),
+    amount: Number(val('inp-amount')),
+    years:  Number(val('inp-years')),
+  };
 }
 
-function goToStep1() {
-  const s1 = document.getElementById('modal-step-1');
-  const s2 = document.getElementById('modal-step-2');
-  if (s1 && s2) {
-    s2.style.display = 'none';
-    s1.style.display = 'block';
+/** Vrací chybovou hlášku nebo null, pokud jsou data v pořádku. */
+function validateForm(d) {
+  if (!selectedTier) return T('err_tier');
+  if (!d.name || !d.street || !d.city || !d.dob || !d.email || !d.amount || !d.years) return T('err_required');
+  if (!EMAIL_RE.test(d.email)) return T('err_email');
+  if (!Number.isInteger(d.years) || d.years < CFG.MIN_YEARS || d.years > CFG.MAX_YEARS) return T('err_years');
+  if (!Number.isFinite(d.amount)) return T('err_required');
+
+  if (selectedTier === TIERS.VIP) {
+    if (d.amount < CFG.VIP.MIN_AMOUNT) return T('err_vip_min');
+  } else {
+    if (d.amount < CFG.STANDARD.MIN_AMOUNT) return T('err_std_min');
+    if (d.amount > CFG.STANDARD.MAX_AMOUNT) return T('err_std_max');
   }
+  return null;
+}
+
+function renderSummary(d) {
+  const box = $('order-summary');
+  if (!box) return;
+  const { rate, grossTotal } = calcReturn(d.amount, d.years, selectedTier);
+  const rows = [
+    [T('sum_tier'),   selectedTier === TIERS.VIP ? T('tier_vip_name') : T('tier_std_name')],
+    [T('sum_amount'), fmtCZK(d.amount)],
+    [T('sum_years'),  fmtYears(d.years)],
+    [T('sum_rate'),   `${fmtPct(rate)} p.a.`],
+    [T('sum_total'),  fmtCZK(grossTotal)],
+  ];
+  box.replaceChildren(...rows.map(([k, v]) => {
+    const row = document.createElement('div');
+    row.className = 'order-summary-row';
+    const key = document.createElement('span');
+    key.textContent = k;
+    const value = document.createElement('strong');
+    value.textContent = v;
+    row.append(key, value);
+    return row;
+  }));
+  box.classList.toggle('order-summary--vip', selectedTier === TIERS.VIP);
+}
+
+function goToStep2() {
+  const d = readForm();
+  const err = validateForm(d);
+  if (err) { showFormErr(err); return; }
+  $('form-err')?.remove();
+  renderSummary(d);
+  showStep(2);
 }
 
 function toggleSubmitBtn() {
-  const chk = document.getElementById('legal-check');
-  const btn = document.getElementById('form-submit');
+  const chk = $('legal-check');
+  const btn = $('form-submit');
   if (chk && btn) btn.disabled = !chk.checked;
+}
+
+function sanitizeSpayd(str, max) {
+  return str.replace(/[*\r\n]/g, ' ').slice(0, max);
 }
 
 function handleSubmit(e) {
   e.preventDefault();
-  const name   = document.getElementById('inp-name')?.value.trim();
-  const street = document.getElementById('inp-street')?.value.trim();
-  const city   = document.getElementById('inp-city')?.value.trim();
-  const dob    = document.getElementById('inp-dob')?.value;
-  const email  = document.getElementById('inp-email')?.value.trim();
-  const amount = parseInt(document.getElementById('inp-amount')?.value);
-  const years  = parseInt(document.getElementById('inp-years')?.value);
+  const d = readForm();
+  const err = validateForm(d);
+  if (err) { showStep(1); showFormErr(err); return; }
+  if (!$('legal-check')?.checked) return;
 
   const vs    = getTodayVS();
+  const tier  = selectedTier;
+  const label = tier === TIERS.VIP ? 'Dluhopis G3NE5IS VIP' : 'Dluhopis G3NE5IS';
   const spayd = [
     'SPD*1.0',
     `ACC:${CFG.IBAN}+${CFG.BIC}`,
-    `AM:${amount.toFixed(2)}`,
+    `AM:${d.amount.toFixed(2)}`,
     'CC:CZK',
-    `MSG:Dluhopis G3NE5IS - ${name}`,
+    `MSG:${sanitizeSpayd(`${label} - ${d.name}`, 60)}`,
     `X-VS:${vs}`,
     `RN:${CFG.COMPANY}`,
   ].join('*');
 
-  // Save to localStorage
   const order = {
-    id: vs + '_' + Date.now(),
+    id:              `${vs}_${Date.now()}`,
     timestamp:       new Date().toISOString(),
     investorType,
-    name, street, city, dob, email,
-    phone:            document.getElementById('inp-phone')?.value.trim() || '',
-    beneficiary:      document.getElementById('inp-bene')?.value.trim() || '',
-    beneficiaryYear:  document.getElementById('inp-bene-yr')?.value.trim() || '',
-    amount, years,
+    tier,
+    name: d.name, street: d.street, city: d.city, dob: d.dob, email: d.email,
+    phone:           d.phone,
+    beneficiary:     d.bene,
+    beneficiaryYear: d.beneYr,
+    amount:          d.amount,
+    years:           d.years,
     vs,
-    rate:   getRate(years),
-    status: 'pending',
+    rate:            getRate(d.years, tier),
+    status:          'pending',
   };
-  const all = JSON.parse(localStorage.getItem('genesis_orders') || '[]');
-  all.push(order);
-  localStorage.setItem('genesis_orders', JSON.stringify(all));
+
+  try {
+    const all = JSON.parse(localStorage.getItem('genesis_orders') || '[]');
+    all.push(order);
+    localStorage.setItem('genesis_orders', JSON.stringify(all));
+  } catch (storageErr) {
+    console.error('Uložení objednávky selhalo:', storageErr);
+  }
 
   closeModal();
   openQR(spayd, vs);
 }
 
 function showFormErr(msg) {
-  let el = document.getElementById('form-err');
+  let el = $('form-err');
   if (!el) {
     el = document.createElement('div');
     el.id = 'form-err';
-    Object.assign(el.style, {
-      color: '#9b3a32', background: '#fdf2f0',
-      border: '1px solid #f5c6cb', borderRadius: '8px',
-      padding: '12px 16px', fontSize: '0.875rem',
-      marginBottom: '16px',
-    });
-    document.getElementById('invest-form')?.prepend(el);
+    el.className = 'form-err';
+    el.setAttribute('role', 'alert');
+    const step1 = $('modal-step-1');
+    step1?.prepend(el);
   }
   el.textContent = msg;
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -561,77 +647,83 @@ function showFormErr(msg) {
    QR CODE MODAL
 ========================================================= */
 function openQR(spayd, vs) {
-  const m = document.getElementById('qr-modal');
-  m?.classList.add('open');
+  $('qr-modal')?.classList.add('open');
   document.body.style.overflow = 'hidden';
   setText('vs-display', vs);
 
-  const qc = document.getElementById('qr-canvas');
+  const qc = $('qr-canvas');
   if (qc && typeof QRCode !== 'undefined') {
-    const ctx2 = qc.getContext('2d');
-    ctx2.clearRect(0, 0, qc.width, qc.height);
+    qc.getContext('2d').clearRect(0, 0, qc.width, qc.height);
     QRCode.toCanvas(qc, spayd, {
       width: 200, margin: 2,
       color: { dark: '#044A22', light: '#ffffff' },
       errorCorrectionLevel: 'M',
-    }, err => {
+    }, (err) => {
       if (err) { console.error('QR error:', err); qc.style.display = 'none'; }
     });
   }
+  setTimeout(() => $('qr-close-btn')?.focus(), 60);
 }
+
 function closeQR() {
-  document.getElementById('qr-modal')?.classList.remove('open');
+  $('qr-modal')?.classList.remove('open');
   document.body.style.overflow = '';
-  document.getElementById('invest-form')?.reset();
-  document.getElementById('form-err')?.remove();
+  $('invest-form')?.reset();
+  $('form-err')?.remove();
+  setType('FO');
 }
-document.getElementById('qr-modal')?.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeQR();
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (isModalOpen('qr-modal')) closeQR();
+  else if (isModalOpen('invest-modal')) closeModal();
 });
 
 /* =========================================================
-   DOMContentLoaded INIT
+   DOMContentLoaded INIT (běží až po aplikaci překladů)
 ========================================================= */
 document.addEventListener('DOMContentLoaded', () => {
-  // Slider events
-  const amtSlider = document.getElementById('amount-slider');
-  const yrSlider  = document.getElementById('years-slider');
-  amtSlider?.addEventListener('input', e => { calcAmount = parseInt(e.target.value); updateCalc(); });
-  yrSlider?.addEventListener('input',  e => { calcYears  = parseInt(e.target.value); updateCalc(); });
-  updateCalc();
+  const bindSlider = (id, cb) => $(id)?.addEventListener('input', (e) => cb(parseInt(e.target.value, 10)));
 
-  // Trigger nav scroll check
+  bindSlider('amount-slider',     (v) => { calcAmount = v; updateCalc(); });
+  bindSlider('years-slider',      (v) => { calcYears  = v; updateCalc(); });
+  bindSlider('vip-amount-slider', (v) => { vipAmount  = v; updateVipCalc(); });
+  bindSlider('vip-years-slider',  (v) => { vipYears   = v; updateVipCalc(); });
+
+  updateCalc();
+  updateVipCalc();
+  setType('FO');
+
+  // Karty pilířů — ovládání klávesnicí (Enter / mezerník)
+  document.querySelectorAll('.invest-card').forEach((card) => {
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(); }
+    });
+  });
+
   navEl?.classList.toggle('scrolled', window.scrollY > 30);
 });
 
 /* =========================================================
-   WINDOW LOAD â€” CHART & COUNTER
+   WINDOW LOAD — graf & počítadlo
 ========================================================= */
 window.addEventListener('load', () => {
   initChart();
 
-  // Animate hero badge counter once in view
-  const badge = document.getElementById('badge-counter');
+  const badge = $('badge-counter');
   if (badge) {
-    const obs = new IntersectionObserver(entries => {
+    const obs = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
-        animateCounter(badge, 184, 2000);
+        animateCounter(badge, MODEL_GAIN_PCT, 2000);
         obs.disconnect();
       }
     }, { threshold: 0.5 });
     obs.observe(badge);
   }
-
-  // Tile keyboard a11y
-  document.querySelectorAll('.invest-card').forEach(card => {
-    card.addEventListener('keypress', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); }
-    });
-  });
 });
 
 /* =========================================================
-   RESIZE: update gold canvas size
+   RESIZE: velikost canvasu se zlatým prachem
 ========================================================= */
 window.addEventListener('resize', () => {
   if (goldCanvas && goldCanvas.style.display !== 'none') {
@@ -641,8 +733,17 @@ window.addEventListener('resize', () => {
 }, { passive: true });
 
 /* =========================================================
-   CONSOLE SIGNATURE
+   EXPLICIT GLOBAL EXPORTS PRO INLINE HTML EVENT HANDLERY
 ========================================================= */
-console.log('%câ¬ˇ G3NE5IS InvestiÄŤnĂ­ SpoleÄŤnost', 'font-family:Georgia,serif;font-size:1.3rem;color:#044A22;font-weight:bold;');
-console.log('%c  Emerald Â· Stability Â· Trust Â© 2026', 'color:#D4AF37;font-size:0.85rem;');
+window.openModal       = openModal;
+window.closeModal      = closeModal;
+window.selectTier      = selectTier;
+window.showStep        = showStep;
+window.goToStep1       = goToStep1;
+window.backToStep1     = backToStep1;
+window.goToStep2       = goToStep2;
+window.setType         = setType;
+window.toggleSubmitBtn = toggleSubmitBtn;
+window.handleSubmit    = handleSubmit;
+window.closeQR         = closeQR;
 
