@@ -2602,3 +2602,37 @@ input[type=range].calc-range--gold::-moz-range-thumb {
     background: var(--g-emerald);
   }
 }
+
+/* ========================================================
+   LUXURY FINISHING TOUCHES (SCROLLBAR, SELECTION & ACCESSIBILITY)
+   ======================================================== */
+@media (min-width: 900px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #012B12;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #C8A96E;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #DFC090;
+  }
+}
+
+::selection {
+  background: #C8A96E;
+  color: #012B12;
+}
+
+::-moz-selection {
+  background: #C8A96E;
+  color: #012B12;
+}
+
+:focus-visible {
+  outline: 2px solid #C8A96E;
+  outline-offset: 3px;
+}

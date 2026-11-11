@@ -65,6 +65,27 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon', sizes: '32x32', type: 'image/png' },
+    ],
+    shortcut: '/favicon.svg',
+    apple: [{ url: '/apple-icon', sizes: '180x180', type: 'image/png' }],
+  },
+  manifest: '/manifest.webmanifest',
+  twitter: {
+    card: 'summary_large_image',
+    title: 'G3NE5IS holdingová společnost — Prémiové podnikové dluhopisy',
+    description:
+      'Stabilní výnos 4,5 % až 7,0 % p.a. krytý reálnými hmotnými aktivy: lesnictví, půda, development.',
+    creator: SITE_CONFIG.COMPANY,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'G3NE5IS',
+  },
 };
 
 export default function RootLayout({

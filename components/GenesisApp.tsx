@@ -19,6 +19,8 @@ import { Contact } from '@/components/sections/Contact';
 import { InvestModal } from '@/components/modal/InvestModal';
 import { QrModal } from '@/components/modal/QrModal';
 import { GoldDust } from '@/components/ui/GoldDust';
+import { ReadingProgress } from '@/components/ui/ReadingProgress';
+import { BackToTop } from '@/components/ui/BackToTop';
 
 interface Props {
   t: Dictionary;
@@ -79,6 +81,7 @@ export const GenesisApp: React.FC<Props> = ({ t }) => {
 
   return (
     <>
+      <ReadingProgress />
       <DeepfakeBanner t={t} />
       <Navbar t={t} />
 
@@ -116,6 +119,7 @@ export const GenesisApp: React.FC<Props> = ({ t }) => {
       />
 
       <GoldDust trigger={dustTrigger} />
+      <BackToTop />
     </>
   );
 };
