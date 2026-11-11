@@ -1,26 +1,55 @@
-# ════════════════════════════════════════════════════
-#  G3NE5IS — Static site + nginx server-side auth
-#  Admin panel chráněn HTTP Basic Auth na nginx úrovni
-# ════════════════════════════════════════════════════
-FROM nginx:alpine
+# ══════════════════════════════════════════════════════════════
+# G3NE5IS INVESTMENT PORTAL — PRODUCTION DOCKERFILE FOR COOLIFY
+# Multi-stage Next.js 15 Standalone Alpine build
+# ══════════════════════════════════════════════════════════════
 
-# Potřebujeme apache2-utils jen pro vygenerování htpasswd (pak odstraníme)
-RUN apk add --no-cache apache2-utils
+FROM node:24-alpine AS base
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
 
-# Generujeme htpasswd soubor s bcrypt hashovaným heslem
-# Heslo se zde vyskytuje pouze v build fázi a NENÍ uloženo v image jako plaintext
-RUN htpasswd -cbB /etc/nginx/.htpasswd admin UUGDSJD8767SD && \
-    apk del apache2-utils
+# Step 1: Dependencies installation
+FROM base AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --prefer-offline --no-audit
 
-# Kopírujeme statické soubory webu
-COPY --chown=nginx:nginx . /usr/share/nginx/html/
+# Step 2: Build the standalone Next.js bundle
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 
-# Kopírujeme custom nginx konfiguraci
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
-# Odstraníme výchozí nginx konfiguraci
-RUN rm -f /etc/nginx/conf.d/default.conf.bak
+RUN npm run build
 
-EXPOSE 80
+# Step 3: Production runner (lightweight, secure, non-root)
+FROM base AS runner
+WORKDIR /app
 
-CMD ["nginx", "-g", "daemon off;"]
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Create unprivileged user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Create data directory for persistent order storage
+RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
+
+# Copy standalone build and static assets
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
+
+CMD ["node", "server.js"]
