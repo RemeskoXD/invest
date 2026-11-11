@@ -6,6 +6,22 @@ import { orderSchema, OrderRecord } from '@/lib/validations';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'orders.json');
 
+// In-memory sliding-window rate limiter for OWASP compliance
+const ipSubmissions = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minut
+const MAX_ORDERS_PER_WINDOW = 6;
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const timestamps = (ipSubmissions.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (timestamps.length >= MAX_ORDERS_PER_WINDOW) {
+    return true;
+  }
+  timestamps.push(now);
+  ipSubmissions.set(ip, timestamps);
+  return false;
+}
+
 // Ensure data folder and file exist
 function getOrders(): OrderRecord[] {
   try {
@@ -43,6 +59,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: 'Byl překročen bezpečnostní limit pro odesílání formulářů. Zkuste to prosím za několik minut.' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
 
     // Validate body structure with Zod

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Dictionary } from '@/lib/translations';
 
 interface Props {
@@ -11,6 +12,13 @@ interface Props {
 export const Navbar: React.FC<Props> = ({ t }) => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname() || '/';
+
+  const currentLang = pathname.startsWith('/sk')
+    ? 'sk'
+    : pathname.startsWith('/pl')
+    ? 'pl'
+    : 'cs';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,7 +48,12 @@ export const Navbar: React.FC<Props> = ({ t }) => {
     >
       <div className="nav__inner">
         {/* LOGO */}
-        <Link href="#hero" className="nav__logo" id="nav-logo" aria-label="G3NE5IS Holdingová Společnost — domů">
+        <Link
+          href="#hero"
+          className="nav__logo"
+          id="nav-logo"
+          aria-label="G3NE5IS Holdingová Společnost — domů"
+        >
           <div className="nav__logo-lockup">
             <span className="nav__logo-main">
               G3NE<span className="nav__logo-accent">5</span>IS
@@ -72,7 +85,12 @@ export const Navbar: React.FC<Props> = ({ t }) => {
           <a href="#rozvoj" className="nav__link" id="nav-rozvoj" onClick={closeMenu}>
             {t.nav_growth}
           </a>
-          <a href="#investice" className="nav__link nav__link--featured" id="nav-investice" onClick={closeMenu}>
+          <a
+            href="#investice"
+            className="nav__link nav__link--featured"
+            id="nav-investice"
+            onClick={closeMenu}
+          >
             {t.nav_invest}
           </a>
           <a href="#kontakt" className="nav__link" id="nav-kontakt" onClick={closeMenu}>
@@ -84,6 +102,34 @@ export const Navbar: React.FC<Props> = ({ t }) => {
           <a href="#vip" className="nav__link nav__vip-link" id="nav-vip" onClick={closeMenu}>
             {t.footer_nav_vip}
           </a>
+
+          {/* LANGUAGE SWITCHER */}
+          <div className="nav__lang-switcher" aria-label="Výběr jazyka">
+            <Link
+              href="/"
+              className={`nav__lang-item ${currentLang === 'cs' ? 'active' : ''}`}
+              title="Čeština (genesis-invest.cz)"
+              onClick={closeMenu}
+            >
+              CZ
+            </Link>
+            <Link
+              href="/sk"
+              className={`nav__lang-item ${currentLang === 'sk' ? 'active' : ''}`}
+              title="Slovenčina (genesis-invest.sk)"
+              onClick={closeMenu}
+            >
+              SK
+            </Link>
+            <Link
+              href="/pl"
+              className={`nav__lang-item ${currentLang === 'pl' ? 'active' : ''}`}
+              title="Polski (genesis-invest.pl)"
+              onClick={closeMenu}
+            >
+              PL
+            </Link>
+          </div>
         </div>
 
         {/* HAMBURGER */}

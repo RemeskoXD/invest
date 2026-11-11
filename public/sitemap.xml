@@ -2,11 +2,11 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
-  <!-- CZ verze -->
+  <!-- CZ verze (Hlavní trh) -->
   <url>
     <loc>https://genesis-invest.cz/</loc>
-    <lastmod>2026-09-26</lastmod>
-    <changefreq>monthly</changefreq>
+    <lastmod>2026-11-11</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="cs" href="https://genesis-invest.cz/"/>
     <xhtml:link rel="alternate" hreflang="sk" href="https://genesis-invest.sk/"/>
@@ -17,8 +17,8 @@
   <!-- SK verze -->
   <url>
     <loc>https://genesis-invest.sk/</loc>
-    <lastmod>2026-09-26</lastmod>
-    <changefreq>monthly</changefreq>
+    <lastmod>2026-11-11</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.9</priority>
     <xhtml:link rel="alternate" hreflang="cs" href="https://genesis-invest.cz/"/>
     <xhtml:link rel="alternate" hreflang="sk" href="https://genesis-invest.sk/"/>
@@ -29,8 +29,8 @@
   <!-- PL verze -->
   <url>
     <loc>https://genesis-invest.pl/</loc>
-    <lastmod>2026-09-26</lastmod>
-    <changefreq>monthly</changefreq>
+    <lastmod>2026-11-11</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.9</priority>
     <xhtml:link rel="alternate" hreflang="cs" href="https://genesis-invest.cz/"/>
     <xhtml:link rel="alternate" hreflang="sk" href="https://genesis-invest.sk/"/>

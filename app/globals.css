@@ -1,4 +1,4 @@
-﻿/* ==========================================================
+/* ==========================================================
    G3NE5IS INVESTIČNÍ SPOLEČNOST
    Brand System v3.0 — "Rooted Luxury"
    Deep Emerald + Matte Brass + Alabaster
@@ -1441,7 +1441,8 @@ input[type=range].calc-range::-moz-range-thumb {
   pointer-events: none;
   transition: opacity var(--duration-med) var(--ease-luxury);
 }
-.modal-backdrop.open {
+.modal-backdrop.open,
+.modal-backdrop.active {
   opacity: 1;
   pointer-events: all;
 }
@@ -1464,7 +1465,8 @@ input[type=range].calc-range::-moz-range-thumb {
   transform: translateY(32px) scale(0.97);
   transition: transform 0.7s var(--ease-luxury);
 }
-.modal-backdrop.open .modal-box {
+.modal-backdrop.open .modal-box,
+.modal-backdrop.active .modal-box {
   transform: translateY(0) scale(1);
 }
 .modal-box::before {
@@ -1704,7 +1706,8 @@ input[type=range].calc-range::-moz-range-thumb {
   pointer-events: none;
   transition: opacity var(--duration-med) var(--ease-luxury);
 }
-.qr-modal-backdrop.open {
+.qr-modal-backdrop.open,
+.qr-modal-backdrop.active {
   opacity: 1;
   pointer-events: all;
 }
@@ -1726,7 +1729,8 @@ input[type=range].calc-range::-moz-range-thumb {
   transform: scale(0.93);
   transition: transform var(--duration-slow) var(--ease-luxury);
 }
-.qr-modal-backdrop.open .qr-box { transform: scale(1); }
+.qr-modal-backdrop.open .qr-box,
+.qr-modal-backdrop.active .qr-box { transform: scale(1); }
 .qr-box::before {
   content: '';
   position: absolute;
@@ -2550,4 +2554,51 @@ input[type=range].calc-range--gold::-moz-range-thumb {
   .btn { justify-content: center; }
   .growth-card { padding: 28px 20px; }
   .calc-result-amount { font-size: 2.4rem; }
+}
+
+/* ========================================================
+   NAVBAR LANGUAGE SWITCHER (CZ / SK / PL)
+   ======================================================== */
+.nav__lang-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 3px 6px;
+  margin-left: 10px;
+}
+.nav__lang-item {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  letter-spacing: 0.06em;
+}
+.nav__lang-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+.nav__lang-item.active {
+  color: #012B12;
+  background: var(--gold);
+}
+@media (max-width: 768px) {
+  .nav__lang-switcher {
+    margin-left: 0;
+    margin-top: 10px;
+    background: rgba(1, 43, 18, 0.06);
+    border-color: rgba(1, 43, 18, 0.15);
+  }
+  .nav__lang-item {
+    color: var(--g-charcoal);
+  }
+  .nav__lang-item.active {
+    color: #fff;
+    background: var(--g-emerald);
+  }
 }
